@@ -2,15 +2,74 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { MainButton, useShowPopup, useThemeParams } from '@vkruglikov/react-telegram-web-app';
+import { MainButton, useShowPopup, useThemeParams, useInitData, BackButton } from '@vkruglikov/react-telegram-web-app';
 import * as api from '@/utils/api';
 import { UserData } from '@/utils/api';
 import { getFallbackAvatar } from '@/utils/telegram';
+import { useRouter } from 'next/navigation';
 
 // Helper function to get user avatar
 const getUserAvatar = (userData: UserData) => {
   return userData.avatar || getFallbackAvatar(userData.name);
 };
+
+// Add this near the top of the file, after imports
+const ULTROID_CHANNELS = [
+  {
+    name: "Ultroid Updates",
+    username: "ultroidupdates",
+    description: "Get the latest updates about Ultroid",
+    type: "channel"
+  },
+  {
+    name: "TeamUltroid",
+    username: "TeamUltroid",
+    description: "Official Ultroid Support Group",
+    type: "group"
+  }
+];
+
+// Add this type for action buttons
+type ActionButton = {
+  label: string;
+  action: () => void;
+  icon: React.ReactNode;
+};
+
+// Add this near the top with other constants
+const BOTTOM_NAV_ITEMS = [
+  {
+    label: "Home",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+    active: true,
+    href: '/'
+  },
+  {
+    label: "Plugins",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+    ),
+    active: false,
+    href: '/plugins'
+  },
+  {
+    label: "Settings",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    active: false,
+    href: '/settings'
+  }
+];
 
 export default function Home() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -18,18 +77,86 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [showHeader, setShowHeader] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   
   const headerRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const skillsRef = useRef<HTMLDivElement>(null);
   
   const showPopup = useShowPopup();
-  const { themeParams, colorScheme } = useThemeParams();
+  const [colorScheme, themeParams] = useThemeParams();
+  const [initDataUnsafe, initData] = useInitData();
+  const router = useRouter();
 
-  // Handle scroll for parallax and reveal effects
+  // Update the webAppParams object
+  const webAppParams = {
+    colorScheme,
+    themeParams,
+    initData,
+    initDataUnsafe,
+  };
+
+  // Add action buttons configuration
+  const actionButtons: ActionButton[] = [
+    {
+      label: "View Assistant",
+      action: () => {
+        showPopup({
+          message: 'Updating assistant...',
+          buttons: [{ type: 'ok' }]
+        });
+      },
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      )
+    },
+    {
+      label: "Restart",
+      action: () => {
+        showPopup({
+          message: 'Restarting bot...',
+          buttons: [{ type: 'ok' }]
+        });
+      },
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      )
+    },
+    {
+      label: "Update",
+      action: () => {
+        showPopup({
+          message: 'Checking for updates...',
+          buttons: [{ type: 'ok' }]
+        });
+      },
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+  ];
+
+  // Update scroll handler to include header hiding
   useEffect(() => {
     const handleScroll = () => {
-      setScrollY(window.scrollY);
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+      setScrollY(currentScrollY);
       
       // Check if elements are in viewport
       const observer = new IntersectionObserver(
@@ -53,7 +180,7 @@ export default function Home() {
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [lastScrollY]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -119,36 +246,91 @@ export default function Home() {
   const skillsTransform = `translateY(${scrollY * 0.05}px)`;
 
   return (
-    <div className="min-h-screen p-6 overflow-hidden">
-      {/* Top Header with Ultroid Button */}
-      <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-white/10">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+    <div className="min-h-[100dvh] p-6 pb-24 overflow-hidden">
+      <div className={`fixed top-0 left-0 right-0 z-50 transform transition-transform duration-300 ${
+        showHeader ? 'translate-y-0' : '-translate-y-full'
+      }`}>
+        <div className="px-4 py-2 bg-background/80 backdrop-blur-lg border-b border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+                Ultroid
+              </span>
             </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-              Ultroid
-            </span>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => setShowBottomSheet(true)}
+                className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-300"
+                aria-label="Show Ultroid Information"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              <button 
+                onClick={() => window.open('https://github.com/TeamUltroid/Ultroid', '_blank')}
+                className="px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-300 flex items-center space-x-2 group"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.031 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.137 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+                </svg>
+                <span className="font-medium">GitHub</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
+              </button>
+            </div>
           </div>
-          <button 
-            onClick={() => window.open('https://github.com/TeamUltroid/Ultroid', '_blank')}
-            className="px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-300 flex items-center space-x-2 group"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.137 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
-            </svg>
-            <span className="font-medium">GitHub</span>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
-          </button>
         </div>
       </div>
 
-      {/* Add padding to account for fixed header */}
-      <div className="pt-20">
-        {/* Enhanced background elements with more dynamic effects */}
+      {showBottomSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            onClick={() => setShowBottomSheet(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-white/10 rounded-t-3xl p-6 z-50 transform transition-transform duration-300 ease-out">
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+            <h3 className="text-2xl font-bold mb-6">Join Ultroid Community</h3>
+            <div className="space-y-4">
+              {ULTROID_CHANNELS.map((channel) => (
+                <a
+                  key={channel.username}
+                  href={`https://t.me/${channel.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start space-x-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors duration-200"
+                >
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                    {channel.type === 'channel' ? (
+                      <svg className="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold mb-1">{channel.name}</h4>
+                    <p className="text-sm text-white/70">{channel.description}</p>
+                  </div>
+                  <svg className="w-5 h-5 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="pt-20 pb-24">
         <div className="fixed top-0 left-0 w-full h-full -z-10">
           <div className="absolute inset-0 bg-gradient-to-br from-background via-background/90 to-background opacity-90"></div>
           <div className="absolute top-[10%] left-[10%] w-96 h-96 rounded-full bg-primary/20 blur-3xl transform -translate-y-1/2 animate-float-slow"></div>
@@ -157,7 +339,6 @@ export default function Home() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(99,102,241,0.1),transparent_70%)] animate-pulse"></div>
         </div>
         
-        {/* Enhanced profile header with glass effect and animations */}
         <header 
           ref={headerRef}
           className={`text-center mb-16 relative transform transition-all duration-700 ${
@@ -200,7 +381,6 @@ export default function Home() {
           )}
         </header>
 
-        {/* Enhanced stats section with glass morphism */}
         <div 
           ref={statsRef}
           className={`mb-16 relative transform transition-all duration-700 ${
@@ -219,7 +399,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Enhanced skills section with staggered animations */}
         <div 
           ref={skillsRef}
           className={`mb-16 relative transform transition-all duration-700 ${
@@ -251,22 +430,79 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Enhanced MainButton with animation */}
-        <div className="fixed bottom-6 left-0 right-0 flex justify-center">
-          <MainButton 
-            text="CONTACT ME"
-            onClick={() => {
-              if (userData.telegram_url) {
-                window.open(userData.telegram_url, '_blank');
-              } else {
-                showPopup({
-                  message: 'Contact information not available',
-                  buttons: [{ type: 'ok' }]
-                });
-              }
-            }}
-            color="#6366f1"
-          />
+        <div className="mb-16 space-y-6">
+          <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
+            <h2 className="text-2xl font-bold mb-4 text-white">
+              Theme Parameters
+            </h2>
+            <pre className="overflow-auto p-4 rounded-lg bg-black/30 text-white/90">
+              {JSON.stringify({ colorScheme, themeParams }, null, 2)}
+            </pre>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
+            <h2 className="text-2xl font-bold mb-4 text-white">
+              Auth Data
+            </h2>
+            <pre className="overflow-auto p-4 rounded-lg bg-black/30 text-white/90">
+              {JSON.stringify(
+                {
+                  user: initDataUnsafe?.user || null,
+                  startParam: initDataUnsafe?.start_param || null,
+                  initData: initData || null,
+                },
+                null,
+                2
+              )}
+            </pre>
+          </div>
+        </div>
+
+        <div className="mb-16">
+          <div className="grid grid-cols-3 gap-4">
+            {actionButtons.map((button, index) => (
+              <button
+                key={button.label}
+                onClick={button.action}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/20 transition-all duration-300 group"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                  {button.icon}
+                </div>
+                <span className="text-sm font-medium text-white/90">{button.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 transition-transform duration-300 ${
+          showBottomSheet ? 'translate-y-full' : 'translate-y-0'
+        }`}>
+          <div className="px-1.5 py-1.5 rounded-2xl bg-background/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20">
+            <div className="flex items-center gap-1">
+              {BOTTOM_NAV_ITEMS.map((item) => (
+                <button
+                  key={item.label}
+                  className={`relative flex items-center px-4 py-2 rounded-xl transition-all duration-200 ${
+                    item.active 
+                      ? 'text-primary bg-white/10' 
+                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
+                  }`}
+                  onClick={() => router.push(item.href)}
+                >
+                  <div className={`transition-transform duration-200 ${
+                    item.active ? 'scale-110' : 'scale-100'
+                  }`}>
+                    {item.icon}
+                  </div>
+                  <span className="ml-2 text-xs font-medium">{item.label}</span>
+                  {item.active && (
+                    <div className="absolute left-2 right-2 bottom-1 h-0.5 rounded-full bg-primary/50" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
