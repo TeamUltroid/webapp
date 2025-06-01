@@ -323,7 +323,7 @@ export default function Settings() {
                       <TextArea
                         value={setting.value}
                         onChange={(value) => {
-                          value.stopPropagation();
+//                          value.stopPropagation();
                           handleSettingChange(sectionIndex, setting.key, value);
                         }}
                         placeholder={setting.label}
@@ -333,7 +333,7 @@ export default function Settings() {
                       <TagInput
                         value={setting.value}
                         onChange={(value) => {
-                          value.stopPropagation();
+                        //   value.stopPropagation();
                           handleSettingChange(sectionIndex, setting.key, value);
                         }}
                       />
@@ -342,7 +342,7 @@ export default function Settings() {
                       <AvatarUpload
                         value={setting.value}
                         onChange={(value) => {
-                          value.stopPropagation();
+//                          value.stopPropagation();
                           handleSettingChange(sectionIndex, setting.key, value);
                         }}
                       />

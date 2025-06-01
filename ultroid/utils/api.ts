@@ -36,17 +36,13 @@ const getApiUrl = async (): Promise<string> => {
     // Store fallback in window object
     if (typeof window !== 'undefined') {
       window.__ULTROID_CONFIG__ = {
-        apiUrl: fallbackUrl
+        apiUrl: fallbackUrl as string
       };
     }
     
-    return fallbackUrl;
+    return fallbackUrl as string;
   }
 };
-
-// For Telegram Web App, we need to use HTTPS in production
-// but for local development, we'll use HTTP
-const BASE_URL = await getApiUrl();
 
 export type UserData = {
   name: string;
