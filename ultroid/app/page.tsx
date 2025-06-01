@@ -87,18 +87,8 @@ export default function Home() {
   
   const showPopup = useShowPopup();
   const [colorScheme, themeParams] = useThemeParams();
-  const [initDataUnsafe, initData] = useInitData();
   const router = useRouter();
 
-  // Update the webAppParams object
-  const webAppParams = {
-    colorScheme,
-    themeParams,
-    initData,
-    initDataUnsafe,
-  };
-
-  // Add action buttons configuration
   const actionButtons: ActionButton[] = [
     {
       label: "View Assistant",
@@ -116,11 +106,23 @@ export default function Home() {
     },
     {
       label: "Restart",
-      action: () => {
-        showPopup({
-          message: 'Restarting bot...',
-          buttons: [{ type: 'ok' }]
-        });
+      action: async () => {
+        try {
+          showPopup({
+            message: 'Restarting bot...',
+            buttons: [{ type: 'ok' }]
+          });
+          const result = await api.api.restartBot();
+          showPopup({
+            message: result.status || 'Bot restarted successfully',
+            buttons: [{ type: 'ok' }]
+          });
+        } catch (error) {
+          showPopup({
+            message: 'Failed to restart bot. Please try again.',
+            buttons: [{ type: 'ok' }]
+          });
+        }
       },
       icon: (
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -130,11 +132,23 @@ export default function Home() {
     },
     {
       label: "Update",
-      action: () => {
-        showPopup({
-          message: 'Checking for updates...',
-          buttons: [{ type: 'ok' }]
-        });
+      action: async () => {
+        try {
+          showPopup({
+            message: 'Checking for updates...',
+            buttons: [{ type: 'ok' }]
+          });
+          const result = await api.api.updateBot();
+          showPopup({
+            message: result.status || 'Bot updated successfully',
+            buttons: [{ type: 'ok' }]
+          });
+        } catch (error) {
+          showPopup({
+            message: 'Failed to update bot. Please try again.',
+            buttons: [{ type: 'ok' }]
+          });
+        }
       },
       icon: (
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -144,7 +158,6 @@ export default function Home() {
     }
   ];
 
-  // Update scroll handler to include header hiding
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -158,7 +171,6 @@ export default function Home() {
       setLastScrollY(currentScrollY);
       setScrollY(currentScrollY);
       
-      // Check if elements are in viewport
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -240,7 +252,6 @@ export default function Home() {
 
   const avatarUrl = getUserAvatar(userData);
   
-  // Enhanced parallax transforms with smooth easing
   const headerTransform = `translateY(${scrollY * 0.2}px) scale(${1 - scrollY * 0.0005})`;
   const statsTransform = `translateY(${scrollY * 0.1}px)`;
   const skillsTransform = `translateY(${scrollY * 0.05}px)`;
@@ -344,7 +355,7 @@ export default function Home() {
           className={`text-center mb-16 relative transform transition-all duration-700 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
-          style={{ transform: headerTransform, transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          style={{ transform: headerTransform }}
         >
           <div className="relative w-48 h-48 mx-auto mb-8">
             <div className="relative w-full h-full rounded-full overflow-hidden shadow-2xl ring-2 ring-primary/20 transition-transform duration-300 hover:scale-105">
@@ -386,14 +397,14 @@ export default function Home() {
           className={`mb-16 relative transform transition-all duration-700 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
-          style={{ transform: statsTransform, transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          style={{ transform: statsTransform }}
         >
           <div className="p-8 rounded-2xl bg-white/5 text-center shadow-xl backdrop-blur-md border border-white/10 hover:border-primary/20 transition-all duration-500 group">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative">
-              <div className="text-sm text-gray-400 uppercase tracking-wider font-medium">Uptime since</div>
-              <div className="text-5xl font-bold text-primary mb-2 transition-all duration-300 group-hover:scale-110">{userData.stats.uptime}</div>
+                <div className="text-sm text-gray-400 uppercase tracking-wider font-medium">Uptime since</div>
+                <div className="text-5xl font-bold text-primary mb-2 transition-all duration-300 group-hover:scale-110">{userData.stats.uptime}</div>
               </div>
             </div>
           </div>
@@ -404,7 +415,7 @@ export default function Home() {
           className={`mb-16 relative transform transition-all duration-700 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
-          style={{ transform: skillsTransform, transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          style={{ transform: skillsTransform }}
         >
           <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
             <span className="relative">
@@ -427,34 +438,6 @@ export default function Home() {
                 {skill}
               </span>
             ))}
-          </div>
-        </div>
-
-        <div className="mb-16 space-y-6">
-          <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
-            <h2 className="text-2xl font-bold mb-4 text-white">
-              Theme Parameters
-            </h2>
-            <pre className="overflow-auto p-4 rounded-lg bg-black/30 text-white/90">
-              {JSON.stringify({ colorScheme, themeParams }, null, 2)}
-            </pre>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10">
-            <h2 className="text-2xl font-bold mb-4 text-white">
-              Auth Data
-            </h2>
-            <pre className="overflow-auto p-4 rounded-lg bg-black/30 text-white/90">
-              {JSON.stringify(
-                {
-                  user: initDataUnsafe?.user || null,
-                  startParam: initDataUnsafe?.start_param || null,
-                  initData: initData || null,
-                },
-                null,
-                2
-              )}
-            </pre>
           </div>
         </div>
 
