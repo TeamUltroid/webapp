@@ -1,12 +1,52 @@
-const API_URL = process.env.NEXT_PUBLIC_ULTROID_API_URL;
-
-if (!API_URL) {
-  throw new Error('NEXT_PUBLIC_ULTROID_API_URL is not defined in environment variables');
+// Declare global window interface
+declare global {
+  interface Window {
+    __ULTROID_CONFIG__: {
+      apiUrl: string;
+    };
+  }
 }
+
+// Helper function to get API URL - only fetches once and caches in window object
+const getApiUrl = async (): Promise<string> => {
+  // Return from window if already loaded
+  if (typeof window !== 'undefined' && window.__ULTROID_CONFIG__?.apiUrl) {
+    return window.__ULTROID_CONFIG__.apiUrl;
+  }
+
+  try {
+    const response = await fetch('/config.json');
+    const config = await response.json();
+    
+    // Store in window object
+    if (typeof window !== 'undefined') {
+
+
+      window.__ULTROID_CONFIG__ = {
+        apiUrl: config.apiUrl
+      };
+    }
+    
+    return config.apiUrl || process.env.NEXT_PUBLIC_ULTROID_API_URL;
+  } catch (error) {
+    console.error('Failed to load config:', error);
+    // Fallback to env variable if config fails
+    const fallbackUrl = process.env.NEXT_PUBLIC_ULTROID_API_URL;
+    
+    // Store fallback in window object
+    if (typeof window !== 'undefined') {
+      window.__ULTROID_CONFIG__ = {
+        apiUrl: fallbackUrl
+      };
+    }
+    
+    return fallbackUrl;
+  }
+};
 
 // For Telegram Web App, we need to use HTTPS in production
 // but for local development, we'll use HTTP
-const BASE_URL = API_URL;
+const BASE_URL = await getApiUrl();
 
 export type UserData = {
   name: string;
@@ -39,6 +79,11 @@ const getInitData = (): string | null => {
 
 // Helper function to make authenticated API calls
 const makeAuthenticatedRequest = async (endpoint: string, method: string = 'GET') => {
+  const apiUrl = await getApiUrl();
+  if (!apiUrl) {
+    throw new Error('API URL is not configured');
+  }
+
   const initData = getInitData();
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
@@ -50,7 +95,7 @@ const makeAuthenticatedRequest = async (endpoint: string, method: string = 'GET'
     console.warn('No init data available - request will not be authenticated');
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const response = await fetch(`${apiUrl}${endpoint}`, {
     method,
     headers
   });
@@ -69,6 +114,15 @@ const makeAuthenticatedRequest = async (endpoint: string, method: string = 'GET'
 };
 
 export const api = {
+  // Set API URL programmatically
+  setApiUrl(url: string) {
+    if (typeof window !== 'undefined') {
+      window.__ULTROID_CONFIG__ = {
+        apiUrl: url
+      };
+    }
+  },
+
   async getUserData(): Promise<UserData> {
     try {
       return await makeAuthenticatedRequest('/api/user');
