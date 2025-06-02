@@ -30,12 +30,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Create zip archive
+        run: |
+          cd dist
+          zip -r ../ultroid-dist.zip .
+          cd ..
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            webapp/ultroid/dist/**/*
+          files: ultroid/ultroid-dist.zip
           draft: false
           prerelease: false
           generate_release_notes: true
