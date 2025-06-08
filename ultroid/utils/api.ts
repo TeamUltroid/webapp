@@ -60,6 +60,11 @@ export type UserData = {
   auth_date?: number;
 };
 
+// API
+export type InvoiceData = {
+    amount: number;
+};
+
 // MiniApp settings type
 export type MiniAppSettings = {
   showStarDonation?: boolean;
@@ -239,7 +244,11 @@ export const api = {
       console.error('Error saving mini app setting:', error);
       throw error;
     }
-  }
+  },
+
+  async createInvoice(data: InvoiceData): Promise<{ url: string }> {
+    return makeApiRequest('/api/miniapp/create_invoice', 'POST', data, true);
+  },
 };
 
 // API client for the Ultroid Central API via local proxy

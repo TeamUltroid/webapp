@@ -132,11 +132,21 @@ export default function Home() {
   }, [miniAppSettings.donationAmounts]);
 
   // Handle donation button click
-  const handleDonate = (amount: string) => {
-    showPopup({
-      message: `Thanks for donating ${amount} stars! ✨`,
-      buttons: [{ type: 'ok' }]
-    });
+  const handleDonate = async (amount: string) => {
+    try {
+      const response = await api.api.createInvoice({ amount: parseInt(amount, 10) });
+      if (response.url) {
+        window.open(response.url, '_blank');
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Donation failed:', error);
+      showPopup({
+        message: 'Failed to create invoice. Please try again later.',
+        buttons: [{ type: 'ok' }],
+      });
+    }
   };
 
   const actionButtons: ActionButton[] = [
