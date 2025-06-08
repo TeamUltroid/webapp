@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useShowPopup } from '@vkruglikov/react-telegram-web-app';
 import { useRouter } from 'next/navigation';
 import { pluginsApi, Plugin, api } from '@/utils/api';
@@ -13,7 +13,7 @@ export default function MyPlugins() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
 
-  const loadMyPlugins = async () => {
+  const loadMyPlugins = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -42,11 +42,11 @@ export default function MyPlugins() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showPopup]);
 
   useEffect(() => {
     loadMyPlugins();
-  }, []);
+  }, [loadMyPlugins]);
 
   const handleDeletePlugin = (plugin: Plugin) => {
     showPopup({
@@ -142,7 +142,7 @@ export default function MyPlugins() {
         
         {plugins.length === 0 && !error && (
           <div className="text-center py-8 text-white/40">
-            <p>You haven't uploaded any plugins yet</p>
+            <p>You haven&apos;t uploaded any plugins yet</p>
             <button
               className="mt-4 px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
               onClick={() => router.push('/plugins/upload')}

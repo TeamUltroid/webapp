@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useShowPopup } from '@vkruglikov/react-telegram-web-app';
 import { useRouter } from 'next/navigation';
 import { pluginsApi, Plugin } from '@/utils/api';
@@ -48,7 +48,7 @@ export default function PluginsStore() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPlugins = async () => {
+  const loadPlugins = useCallback(async () => {
     try {
       setLoading(true);
       const data = await pluginsApi.listPlugins();
@@ -63,11 +63,11 @@ export default function PluginsStore() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showPopup]);
 
   useEffect(() => {
     loadPlugins();
-  }, []);
+  }, [loadPlugins]);
 
   const filteredPlugins = plugins.filter(plugin => 
     plugin.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

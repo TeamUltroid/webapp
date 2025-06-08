@@ -114,23 +114,24 @@ export default function Settings() {
         
         // Update settings with saved values
         if (Object.keys(savedSettings).length > 0) {
-          const newSettings = [...settings];
-          
-          // Find Mini App section
-          const miniAppSectionIndex = newSettings.findIndex(section => 
-            section.title === "Mini App Home page"
-          );
-          
-          if (miniAppSectionIndex !== -1) {
-            // Update each setting with saved value
-            newSettings[miniAppSectionIndex].settings.forEach(setting => {
-              if (savedSettings[setting.key] !== undefined) {
-                setting.value = savedSettings[setting.key];
-              }
-            });
+          setSettings(prevSettings => {
+            const newSettings = [...prevSettings];
             
-            setSettings(newSettings);
-          }
+            // Find Mini App section
+            const miniAppSectionIndex = newSettings.findIndex(section => 
+              section.title === "Mini App Home page"
+            );
+            
+            if (miniAppSectionIndex !== -1) {
+              // Update each setting with saved value
+              newSettings[miniAppSectionIndex].settings.forEach(setting => {
+                if (savedSettings[setting.key] !== undefined) {
+                  setting.value = savedSettings[setting.key];
+                }
+              });
+            }
+            return newSettings;
+          });
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -144,7 +145,7 @@ export default function Settings() {
     };
     
     loadSettings();
-  }, []);
+  }, [showPopup]);
 
   const toggleSection = (title: string) => {
     setExpandedSections(prev => ({
