@@ -14,7 +14,7 @@ declare global {
 export function TelegramWrapper({ children }: { children: ReactNode }) {
   if (typeof window !== 'undefined' && !window.Telegram?.WebApp) {
     console.warn('Telegram WebApp is not initialized');
-    return <div>Loading Telegram Web App...</div>;
+  return <div>Loading Telegram Web App...</div>;
   }
 
   return (

@@ -1,34 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useShowPopup } from '@vkruglikov/react-telegram-web-app';
 import { useRouter } from 'next/navigation';
-
-type Plugin = {
-  name: string;
-  description: string;
-  author: string;
-  downloads: number;
-  installed: boolean;
-};
-
-const SAMPLE_PLUGINS: Plugin[] = [
-  {
-    name: "AutoFilter",
-    description: "Automatically filter and manage media in your groups",
-    author: "@TeamUltroid",
-    downloads: 12500,
-    installed: true
-  },
-  {
-    name: "ChatBot",
-    description: "AI-powered chatbot for your groups",
-    author: "@KarbonCopy",
-    downloads: 8300,
-    installed: false
-  },
-  // Add more sample plugins...
-];
+import { pluginsApi, Plugin } from '@/utils/api';
 
 // Add the navigation items
 const BOTTOM_NAV_ITEMS = [
@@ -65,129 +40,51 @@ const BOTTOM_NAV_ITEMS = [
   }
 ];
 
-// Add this type for the upload modal
-type UploadModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-};
-
-// Add the UploadModal component
-function UploadModal({ isOpen, onClose }: UploadModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [pluginName, setPluginName] = useState('');
-  const [description, setDescription] = useState('');
-  const showPopup = useShowPopup();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !pluginName.trim()) {
-      showPopup({
-        message: 'Please fill in all required fields',
-        buttons: [{ type: 'ok' }]
-      });
-      return;
-    }
-
-    // TODO: Implement file upload
-    showPopup({
-      message: 'Uploading plugin...',
-      buttons: [{ type: 'ok' }]
-    });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <>
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-        onClick={onClose}
-      />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-background border border-white/10 rounded-2xl p-6 z-50">
-        <h2 className="text-lg font-bold text-white mb-4">Upload Plugin</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">
-              Plugin Name *
-            </label>
-            <input
-              type="text"
-              value={pluginName}
-              onChange={(e) => setPluginName(e.target.value)}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:border-primary/50"
-              placeholder="MyAwesomePlugin"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:border-primary/50 min-h-[100px]"
-              placeholder="Describe what your plugin does..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">
-              Plugin File *
-            </label>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".py"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="hidden"
-                id="plugin-file"
-              />
-              <label
-                htmlFor="plugin-file"
-                className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-white/20 rounded-xl text-white/60 hover:border-primary/50 hover:text-primary transition-colors cursor-pointer"
-              >
-                {file ? (
-                  <span className="text-sm">{file.name}</span>
-                ) : (
-                  <span className="text-sm">Choose a .py file</span>
-                )}
-              </label>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-white/60 hover:text-white/90 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
-            >
-              Upload
-            </button>
-          </div>
-        </form>
-      </div>
-    </>
-  );
-}
-
 export default function PluginsStore() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const showPopup = useShowPopup();
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredPlugins = SAMPLE_PLUGINS.filter(plugin => 
-    plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    plugin.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const loadPlugins = async () => {
+    try {
+      setLoading(true);
+      const data = await pluginsApi.listPlugins();
+      setPlugins(data);
+      setError(null);
+    } catch (error) {
+      setError('Failed to load plugins');
+      showPopup({
+        message: 'Failed to load plugins. Please try again.',
+        buttons: [{ type: 'ok' }]
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPlugins();
+  }, []);
+
+  const filteredPlugins = plugins.filter(plugin => 
+    plugin.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    plugin.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    plugin.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-white/60">Loading plugins...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-background pb-24">
@@ -201,7 +98,15 @@ export default function PluginsStore() {
           <div className="flex items-center gap-2">
             <button 
               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-              onClick={() => setShowUploadModal(true)}
+              onClick={() => router.push('/plugins/my-plugins')}
+            >
+              <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </button>
+            <button 
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+              onClick={() => router.push('/plugins/upload')}
             >
               <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -209,13 +114,10 @@ export default function PluginsStore() {
             </button>
             <button 
               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-              onClick={() => showPopup({
-                message: 'Coming soon!',
-                buttons: [{ type: 'ok' }]
-              })}
+              onClick={() => loadPlugins()}
             >
               <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
@@ -240,40 +142,57 @@ export default function PluginsStore() {
 
       {/* Plugins List */}
       <div className="p-4 space-y-4">
+        {error && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500">
+            {error}
+          </div>
+        )}
+        
+        {filteredPlugins.length === 0 && !error && (
+          <div className="text-center py-8 text-white/40">
+            {searchQuery ? 'No plugins found matching your search' : 'No plugins available'}
+          </div>
+        )}
+        
         {filteredPlugins.map((plugin) => (
-          <div key={plugin.name} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-primary/20 transition-all duration-300">
+          <div key={plugin.id} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-primary/20 transition-all duration-300">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-semibold text-white">{plugin.name}</h3>
-              <button
-                onClick={() => {
-                  showPopup({
-                    message: plugin.installed ? 'Uninstall this plugin?' : 'Install this plugin?',
-                    buttons: [
-                      { type: 'destructive', text: plugin.installed ? 'Uninstall' : 'Install' },
-                      { type: 'cancel' }
-                    ]
-                  });
-                }}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  plugin.installed 
-                    ? 'bg-white/10 text-white/60 hover:bg-white/20' 
-                    : 'bg-primary/20 text-primary hover:bg-primary/30'
-                }`}
+              <div>
+                <h3 className="text-lg font-semibold text-white">{plugin.title}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  {plugin.is_official && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-500">Official</span>
+                  )}
+                  {plugin.is_trusted && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-500">Trusted</span>
+                  )}
+                </div>
+              </div>
+              <a
+                href={plugin.download_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 rounded-lg text-sm font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-all duration-300"
               >
-                {plugin.installed ? 'Installed' : 'Install'}
-              </button>
+                Download
+              </a>
             </div>
             <p className="text-sm text-white/70 mb-3">{plugin.description}</p>
-            <div className="flex items-center text-xs text-white/40 space-x-4">
-              <span>{plugin.author}</span>
-              <span>•</span>
-              <span>{plugin.downloads.toLocaleString()} downloads</span>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {plugin.tags.map((tag) => (
+                <span 
+                  key={tag}
+                  className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/60"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Add bottom navigation */}
+      {/* Bottom Navigation */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
         <div className="px-1.5 py-1.5 rounded-2xl bg-background/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20">
           <div className="flex items-center gap-1">
@@ -301,11 +220,6 @@ export default function PluginsStore() {
           </div>
         </div>
       </div>
-
-      <UploadModal 
-        isOpen={showUploadModal} 
-        onClose={() => setShowUploadModal(false)} 
-      />
     </div>
   );
 } 

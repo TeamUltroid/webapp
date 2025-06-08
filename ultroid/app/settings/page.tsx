@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useShowPopup } from '@vkruglikov/react-telegram-web-app';
 import Image from 'next/image';
+import { api, MiniAppSettings } from '../../utils/api';
 
 // Navigation items (same as other pages)
 const BOTTOM_NAV_ITEMS = [
@@ -66,123 +67,27 @@ type Connection = {
 
 const SETTINGS_SECTIONS: SettingSection[] = [
   {
-    title: "Bot Settings",
-    description: "Configure your Ultroid bot's behavior",
+    title: "Mini App Home page",
+    description: "Configure your mini app's homepage settings",
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
       </svg>
     ),
     settings: [
       {
-        key: "pmPermit",
-        label: "PM Permit",
+        key: "showStarDonation",
+        label: "Show Star Donation",
         type: "toggle",
-        value: true,
-        description: "Require users to get approval before messaging"
+        value: false,
+        description: "Display star donation option on the home page"
       },
       {
-        key: "inlineMode",
-        label: "Inline Mode",
-        type: "toggle",
-        value: true,
-        description: "Enable inline query handling"
-      }
-    ]
-  },
-  {
-    title: "Security",
-    description: "Security and privacy settings",
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
-      </svg>
-    ),
-    settings: [
-      {
-        key: "logLevel",
-        label: "Log Level",
-        type: "select",
-        value: "info",
-        options: [
-          { label: "Debug", value: "debug" },
-          { label: "Info", value: "info" },
-          { label: "Warning", value: "warning" },
-          { label: "Error", value: "error" }
-        ]
-      },
-      {
-        key: "apiKey",
-        label: "API Key",
+        key: "donationAmounts",
+        label: "Donation Amounts",
         type: "input",
-        value: "",
-        description: "Your bot's API key"
-      }
-    ]
-  },
-  {
-    title: "Profile",
-    description: "Manage your bot's public profile",
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    settings: [
-      {
-        key: "name",
-        label: "Display Name",
-        type: "input",
-        value: "",
-        description: "Your bot's display name"
-      },
-      {
-        key: "bio",
-        label: "Bio",
-        type: "textarea",
-        value: "",
-        description: "A short description about your bot"
-      },
-      {
-        key: "skills",
-        label: "Skills",
-        type: "tags",
-        value: [],
-        description: "Add skills that your bot has (press Enter to add)"
-      },
-      {
-        key: "avatar",
-        label: "Avatar",
-        type: "avatar",
-        value: "",
-        description: "Your bot's profile picture"
-      }
-    ]
-  },
-  {
-    title: "Connections",
-    description: "Link your accounts to enable additional features",
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-      </svg>
-    ),
-    settings: [
-      {
-        key: "spotify",
-        label: "Spotify",
-        type: "connection",
-        value: {
-          service: "Spotify",
-          connected: false,
-          icon: (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-            </svg>
-          ),
-          description: "Play music in your groups and channels",
-          username: undefined
-        }
+        value: "1,5,50",
+        description: "Comma-separated list of donation amounts (e.g. 1,5,50)"
       }
     ]
   }
@@ -197,6 +102,49 @@ export default function Settings() {
   const showPopup = useShowPopup();
   const [settings, setSettings] = useState(SETTINGS_SECTIONS);
   const [expandedSections, setExpandedSections] = useState<ExpandedSections>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load saved settings from the server
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setIsLoading(true);
+        const savedSettings = await api.getMiniAppSettings();
+        
+        // Update settings with saved values
+        if (Object.keys(savedSettings).length > 0) {
+          const newSettings = [...settings];
+          
+          // Find Mini App section
+          const miniAppSectionIndex = newSettings.findIndex(section => 
+            section.title === "Mini App Home page"
+          );
+          
+          if (miniAppSectionIndex !== -1) {
+            // Update each setting with saved value
+            newSettings[miniAppSectionIndex].settings.forEach(setting => {
+              if (savedSettings[setting.key] !== undefined) {
+                setting.value = savedSettings[setting.key];
+              }
+            });
+            
+            setSettings(newSettings);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        showPopup({
+          message: 'Failed to load settings. Using defaults.',
+          buttons: [{ type: 'ok' }]
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, []);
 
   const toggleSection = (title: string) => {
     setExpandedSections(prev => ({
@@ -205,7 +153,7 @@ export default function Settings() {
     }));
   };
 
-  const handleSettingChange = (sectionIndex: number, settingKey: string, value: any) => {
+  const handleSettingChange = async (sectionIndex: number, settingKey: string, value: any) => {
     const newSettings = [...settings];
     const setting = newSettings[sectionIndex].settings.find(s => s.key === settingKey);
     if (setting) {
@@ -213,10 +161,31 @@ export default function Settings() {
       setSettings(newSettings);
       
       // Show saving indicator
+      setIsSaving(true);
       showPopup({
         message: 'Saving settings...',
         buttons: [{ type: 'ok' }]
       });
+
+      // Save Mini App settings to the server
+      if (newSettings[sectionIndex].title === "Mini App Home page") {
+        try {
+          const response = await api.saveMiniAppSetting(settingKey, value);
+
+          showPopup({
+            message: 'Settings saved successfully!',
+            buttons: [{ type: 'ok' }]
+          });
+        } catch (error) {
+          console.error('Error saving settings:', error);
+          showPopup({
+            message: 'Failed to save settings. Please try again.',
+            buttons: [{ type: 'ok' }]
+          });
+        }
+      }
+      
+      setIsSaving(false);
     }
   };
 
@@ -232,9 +201,17 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="flex justify-center items-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          <span className="ml-3 text-white/60">Loading settings...</span>
+        </div>
+      )}
+
       {/* Settings Sections */}
       <div className="p-4">
-        {settings.map((section, sectionIndex) => (
+        {!isLoading && settings.map((section, sectionIndex) => (
           <div key={section.title} className={`rounded-xl bg-white/5 border border-white/10 overflow-hidden transition-all duration-200 ${
             expandedSections[section.title] 
               ? 'mb-4' 

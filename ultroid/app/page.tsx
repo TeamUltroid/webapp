@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { MainButton, useShowPopup, useThemeParams, useInitData, BackButton } from '@vkruglikov/react-telegram-web-app';
 import * as api from '@/utils/api';
@@ -11,6 +11,31 @@ import { useRouter } from 'next/navigation';
 // Helper function to get user avatar
 const getUserAvatar = (userData: UserData) => {
   return userData.avatar || getFallbackAvatar(userData.name);
+};
+
+// Add this helper function to parse and render bio with clickable usernames
+const renderBioWithLinks = (bio: string) => {
+  // Split bio into parts, preserving @username mentions
+  const parts = bio.split(/(@[a-zA-Z0-9_]+)/g);
+  
+  return parts.map((part, index) => {
+    // Check if this part is a username mention
+    if (part.startsWith('@')) {
+      const username = part.substring(1); // Remove @ symbol
+      return (
+        <a
+          key={index}
+          href={`https://t.me/${username}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
 };
 
 // Add this near the top of the file, after imports
@@ -36,8 +61,9 @@ type ActionButton = {
   icon: React.ReactNode;
 };
 
+const getBottomNavItems = (isOwner: boolean) => {
 // Add this near the top with other constants
-const BOTTOM_NAV_ITEMS = [
+return [
   {
     label: "Home",
     icon: (
@@ -48,7 +74,7 @@ const BOTTOM_NAV_ITEMS = [
     active: true,
     href: '/'
   },
-  {
+  isOwner && {
     label: "Plugins",
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -68,18 +94,25 @@ const BOTTOM_NAV_ITEMS = [
     ),
     active: false,
     href: '/settings'
-  }
-];
+  }];
+};
 
 export default function Home() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [miniAppSettings, setMiniAppSettings] = useState<{
+    showStarDonation: boolean;
+    donationAmounts: string;
+  }>({
+    showStarDonation: false,
+    donationAmounts: "1,5,50"
+  });
   
   const headerRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
@@ -87,7 +120,24 @@ export default function Home() {
   
   const showPopup = useShowPopup();
   const [colorScheme, themeParams] = useThemeParams();
+  const initData = useInitData();
   const router = useRouter();
+
+  // Check if authenticated user is the bot owner
+  const isOwner = initData && userData?.user_id === initData[0]?.user?.id;
+
+  // Parse donation amounts
+  const donationAmountArray = useMemo(() => {
+    return miniAppSettings.donationAmounts.split(',').map(amount => amount.trim());
+  }, [miniAppSettings.donationAmounts]);
+
+  // Handle donation button click
+  const handleDonate = (amount: string) => {
+    showPopup({
+      message: `Thanks for donating ${amount} stars! ✨`,
+      buttons: [{ type: 'ok' }]
+    });
+  };
 
   const actionButtons: ActionButton[] = [
     {
@@ -170,29 +220,34 @@ export default function Home() {
       
       setLastScrollY(currentScrollY);
       setScrollY(currentScrollY);
-      
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              setIsVisible(true);
-              observer.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.1 }
-      );
-
-      [headerRef, statsRef, skillsRef].forEach((ref) => {
-        if (ref.current) {
-          observer.observe(ref.current);
-        }
-      });
     };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
+  // Fetch mini app settings
+  useEffect(() => {
+    const fetchMiniAppSettings = async () => {
+      try {
+        const settings = await api.api.getMiniAppSettings();
+        if (settings) {
+          setMiniAppSettings({
+            showStarDonation: settings.showStarDonation || false,
+            donationAmounts: settings.donationAmounts || "1,5,50"
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching mini app settings:', error);
+      }
+    };
+
+    fetchMiniAppSettings();
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -376,7 +431,7 @@ export default function Home() {
           </h1>
           {userData.bio && (
             <p className="text-lg text-gray-300/90 max-w-md mx-auto mb-6 leading-relaxed">
-              {userData.bio}
+              {renderBioWithLinks(userData.bio)}
             </p>
           )}
           
@@ -392,27 +447,10 @@ export default function Home() {
           )}
         </header>
 
-        <div 
-          ref={statsRef}
-          className={`mb-16 relative transform transition-all duration-700 ${
-            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
-          }`}
-          style={{ transform: statsTransform }}
-        >
-          <div className="p-8 rounded-2xl bg-white/5 text-center shadow-xl backdrop-blur-md border border-white/10 hover:border-primary/20 transition-all duration-500 group">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative">
-                <div className="text-sm text-gray-400 uppercase tracking-wider font-medium">Uptime since</div>
-                <div className="text-5xl font-bold text-primary mb-2 transition-all duration-300 group-hover:scale-110">{userData.stats.uptime}</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div 
           ref={skillsRef}
-          className={`mb-16 relative transform transition-all duration-700 ${
+          className={`mb-16  transform transition-all duration-700 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
           style={{ transform: skillsTransform }}
@@ -441,29 +479,71 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mb-16">
-          <div className="grid grid-cols-3 gap-4">
-            {actionButtons.map((button, index) => (
-              <button
-                key={button.label}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/20 transition-all duration-300 group"
-              >
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
-                  {button.icon}
-                </div>
-                <span className="text-sm font-medium text-white/90">{button.label}</span>
-              </button>
-            ))}
+        {/* Donation Buttons - Show only if enabled in settings */}
+        {miniAppSettings.showStarDonation && (
+          <div className="my-6 mt-20 ">
+            <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
+              <span className="relative">
+                Support with Stars ⭐
+                <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
+              </span>
+            </h2>
+            <div className="flex flex-col space-y-3">
+              {donationAmountArray.map((amount, index) => (
+                <button
+                  key={amount}
+                  onClick={() => handleDonate(amount)}
+                  className="flex items-center justify-between p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300 group hover:shadow-lg hover:shadow-yellow-400/10 w-full"
+                >
+                  <div className="flex items-center">
+                    <div className="text-2xl mr-3">⭐</div>
+                    <div>
+                      <div className="text-xl font-bold text-yellow-400 group-hover:scale-105 transition-transform duration-300">Pay {amount} stars</div>
+                    </div>
+                  </div>
+                  <div className="bg-white/10 rounded-full p-2 group-hover:bg-yellow-400/20 transition-colors duration-300">
+                    <svg className="w-5 h-5 text-white/60 group-hover:text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 transition-transform duration-300 ${
+        {/* Action Buttons - Only show for bot owner */}
+        {isOwner && (
+          <div className="mb-16">
+            <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
+              <span className="relative">
+                Bot Control
+                <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
+              </span>
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              {actionButtons.map((button, index) => (
+                <button
+                  key={button.label}
+                  onClick={button.action}
+                  className="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/20 transition-all duration-300 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                    {button.icon}
+                  </div>
+                  <span className="text-sm font-medium text-white/90">{button.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isOwner && <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 transition-transform duration-300 ${
           showBottomSheet ? 'translate-y-full' : 'translate-y-0'
         }`}>
           <div className="px-1.5 py-1.5 rounded-2xl bg-background/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20">
             <div className="flex items-center gap-1">
-              {BOTTOM_NAV_ITEMS.map((item) => (
+              {getBottomNavItems(isOwner).map((item) => (item && (
                 <button
                   key={item.label}
                   className={`relative flex items-center px-4 py-2 rounded-xl transition-all duration-200 ${
@@ -483,10 +563,10 @@ export default function Home() {
                     <div className="absolute left-2 right-2 bottom-1 h-0.5 rounded-full bg-primary/50" />
                   )}
                 </button>
-              ))}
+              )))}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
