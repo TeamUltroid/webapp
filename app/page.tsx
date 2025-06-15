@@ -97,6 +97,30 @@ return [
   }];
 };
 
+// Helper function to get avatar shape classes
+const getAvatarShapeClasses = (shape: string) => {
+  switch (shape) {
+    case 'circle':
+      return 'rounded-full';
+    case 'rounded-square':
+      return 'rounded-xl';
+    case 'square':
+      return 'rounded-none';
+    case 'hexagon':
+      return 'rounded-none';
+    default:
+      return 'rounded-full';
+  }
+};
+
+// Helper function to get avatar container classes for hexagon shape
+const getAvatarContainerClasses = (shape: string) => {
+  if (shape === 'hexagon') {
+    return 'hexagon-avatar';
+  }
+  return '';
+};
+
 export default function Home() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,13 +129,14 @@ export default function Home() {
   const [isVisible, setIsVisible] = useState(true);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [miniAppSettings, setMiniAppSettings] = useState<{
+  const [lastScrollY, setLastScrollY] = useState(0);  const [miniAppSettings, setMiniAppSettings] = useState<{
     showStarDonation: boolean;
     donationAmounts: string;
+    avatarShape: string;
   }>({
     showStarDonation: false,
-    donationAmounts: "1,5,50"
+    donationAmounts: "1,5,50",
+    avatarShape: "circle"
   });
   
   const headerRef = useRef<HTMLDivElement>(null);
@@ -245,10 +270,10 @@ export default function Home() {
     const fetchMiniAppSettings = async () => {
       try {
         const settings = await api.api.getMiniAppSettings();
-        if (settings) {
-          setMiniAppSettings({
+        if (settings) {          setMiniAppSettings({
             showStarDonation: settings.showStarDonation || false,
-            donationAmounts: settings.donationAmounts || "1,5,50"
+            donationAmounts: settings.donationAmounts || "1,5,50",
+            avatarShape: settings.avatarShape || "circle"
           });
         }
       } catch (error) {
@@ -276,9 +301,7 @@ export default function Home() {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchUserData();
+    };    fetchUserData();
   }, [showPopup]);
 
   if (loading) {
@@ -286,9 +309,8 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-background/80">
         <div className="text-center relative">
           <div className="absolute -inset-4 bg-primary/10 blur-xl rounded-full animate-pulse"></div>
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary mx-auto mb-6"></div>
-            <p className="text-foreground text-lg font-medium animate-pulse">Loading profile...</p>
+          <div className="relative">            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary mx-auto mb-6"></div>
+            <p className="text-theme text-lg font-medium animate-pulse">Loading profile...</p>
           </div>
         </div>
       </div>
@@ -325,38 +347,35 @@ export default function Home() {
     <div className="min-h-[100dvh] p-6 pb-24 overflow-hidden">
       <div className={`fixed top-0 left-0 right-0 z-50 transform transition-transform duration-300 ${
         showHeader ? 'translate-y-0' : '-translate-y-full'
-      }`}>
-        <div className="px-4 py-2 bg-background/80 backdrop-blur-lg border-b border-white/10">
+      }`}>        <div className="px-4 py-2 bg-background/80 backdrop-blur-lg border-b border-theme">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
                 <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-              </div>
-              <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+              </div><span className="text-lg font-bold text-theme">
                 Ultroid
               </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <button 
+            <div className="flex items-center space-x-4">              <button 
                 onClick={() => setShowBottomSheet(true)}
-                className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-300"
+                className="p-2 rounded-lg bg-surface border border-theme hover:bg-white/10 transition-all duration-300"
                 aria-label="Show Ultroid Information"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <svg className="w-5 h-5 text-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </button>
               <button 
                 onClick={() => window.open('https://github.com/TeamUltroid/Ultroid', '_blank')}
-                className="px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-300 flex items-center space-x-2 group"
+                className="px-4 py-2 rounded-lg bg-surface border border-theme hover:bg-white/10 transition-all duration-300 flex items-center space-x-2 group"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-5 h-5 text-theme" viewBox="0 0 24 24" fill="currentColor">
                   <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.031 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.137 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
                 </svg>
-                <span className="font-medium">GitHub</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
+                <span className="font-medium text-theme">GitHub</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-theme">→</span>
               </button>
             </div>
           </div>
@@ -368,10 +387,9 @@ export default function Home() {
           <div 
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={() => setShowBottomSheet(false)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-white/10 rounded-t-3xl p-6 z-50 transform transition-transform duration-300 ease-out">
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-            <h3 className="text-2xl font-bold mb-6">Join Ultroid Community</h3>
+          />          <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-theme rounded-t-3xl p-6 z-50 transform transition-transform duration-300 ease-out">
+            <div className="w-12 h-1 bg-theme/20 rounded-full mx-auto mb-6" />
+            <h3 className="text-2xl font-bold mb-6 text-theme">Join Ultroid Community</h3>
             <div className="space-y-4">
               {ULTROID_CHANNELS.map((channel) => (
                 <a
@@ -379,7 +397,7 @@ export default function Home() {
                   href={`https://t.me/${channel.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-start space-x-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors duration-200"
+                  className="flex items-start space-x-4 p-4 rounded-xl bg-surface hover:bg-white/10 border border-theme transition-colors duration-200"
                 >
                   <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                     {channel.type === 'channel' ? (
@@ -392,11 +410,9 @@ export default function Home() {
                       </svg>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold mb-1">{channel.name}</h4>
-                    <p className="text-sm text-white/70">{channel.description}</p>
-                  </div>
-                  <svg className="w-5 h-5 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <div className="flex-1">                    <h4 className="text-lg font-semibold mb-1 text-theme">{channel.name}</h4>
+                    <p className="text-sm text-theme-secondary">{channel.description}</p>
+                  </div>                  <svg className="w-5 h-5 text-theme-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
@@ -421,9 +437,8 @@ export default function Home() {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
           style={{ transform: headerTransform }}
-        >
-          <div className="relative w-48 h-48 mx-auto mb-8">
-            <div className="relative w-full h-full rounded-full overflow-hidden shadow-2xl ring-2 ring-primary/20 transition-transform duration-300 hover:scale-105">
+        >          <div className="relative w-48 h-48 mx-auto mb-8">
+            <div className={`relative w-full h-full ${getAvatarShapeClasses(miniAppSettings.avatarShape)} ${getAvatarContainerClasses(miniAppSettings.avatarShape)} overflow-hidden shadow-2xl ring-2 ring-primary/20 transition-transform duration-300 hover:scale-105`}>
               <Image 
                 src={avatarUrl} 
                 alt={userData.name} 
@@ -432,25 +447,22 @@ export default function Home() {
                 priority
               />
             </div>
-          </div>
-          <h1 className="text-4xl font-bold mb-3 text-white relative">
+          </div><h1 className="text-4xl font-bold mb-3 text-theme relative">
             <span className="relative">
               {userData.name}
               <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
             </span>
-          </h1>
-          {userData.bio && (
-            <p className="text-lg text-gray-300/90 max-w-md mx-auto mb-6 leading-relaxed">
+          </h1>          {userData.bio && (
+            <p className="text-lg text-theme-secondary max-w-md mx-auto mb-6 leading-relaxed">
               {renderBioWithLinks(userData.bio)}
             </p>
           )}
           
-          {userData.telegram_url && (
-            <a 
+          {userData.telegram_url && (            <a 
               href={userData.telegram_url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block px-6 py-2 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+              className="inline-block px-6 py-2 rounded-full text-sm bg-surface text-primary border border-theme hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
             >
               @{userData.username}
             </a>
@@ -463,9 +475,8 @@ export default function Home() {
           className={`mb-16  transform transition-all duration-700 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           }`}
-          style={{ transform: skillsTransform }}
-        >
-          <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
+          style={{ transform: skillsTransform }}        >
+          <h2 className="text-2xl font-bold mb-6 text-theme relative inline-block">
             <span className="relative">
               Skills
               <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
@@ -475,7 +486,7 @@ export default function Home() {
             {userData.skills.map((skill, index) => (
               <span
                 key={skill}
-                className="px-5 py-2.5 rounded-lg text-sm bg-white/5 text-white/90 border border-white/10 shadow-lg backdrop-blur-md hover:border-primary/20 hover:bg-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-primary/20"
+                className="px-5 py-2.5 rounded-lg text-sm bg-surface text-theme border border-theme shadow-theme-small backdrop-blur-md hover:border-primary hover:bg-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-theme-medium"
                 style={{ 
                   animationDelay: `${index * 100}ms`,
                   transform: `translateY(${scrollY * 0.02 * (index % 3 + 1)}px)`,
@@ -491,8 +502,7 @@ export default function Home() {
 
         {/* Donation Buttons - Show only if enabled in settings */}
         {miniAppSettings.showStarDonation && (
-          <div className="my-6 mt-20 ">
-            <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
+          <div className="my-6 mt-20 ">            <h2 className="text-2xl font-bold mb-6 text-theme relative inline-block">
               <span className="relative">
                 Support with Stars ⭐
                 <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
@@ -503,16 +513,15 @@ export default function Home() {
                 <button
                   key={amount}
                   onClick={() => handleDonate(amount)}
-                  className="flex items-center justify-between p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300 group hover:shadow-lg hover:shadow-yellow-400/10 w-full"
+                  className="flex items-center justify-between p-5 rounded-xl bg-surface border border-theme hover:bg-white/10 hover:border-primary transition-all duration-300 group hover:shadow-theme-medium w-full"
                 >
                   <div className="flex items-center">
                     <div className="text-2xl mr-3">⭐</div>
                     <div>
-                      <div className="text-xl font-bold text-yellow-400 group-hover:scale-105 transition-transform duration-300">Pay {amount} stars</div>
+                      <div className="text-xl font-bold text-primary group-hover:scale-105 transition-transform duration-300 bg-transparent">Pay {amount} stars</div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 rounded-full p-2 group-hover:bg-yellow-400/20 transition-colors duration-300">
-                    <svg className="w-5 h-5 text-white/60 group-hover:text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  </div>                  <div className="bg-surface rounded-full p-2 group-hover:bg-primary/20 transition-colors duration-300">
+                    <svg className="w-5 h-5 text-theme-secondary group-hover:text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                   </div>
@@ -524,8 +533,7 @@ export default function Home() {
 
         {/* Action Buttons - Only show for bot owner */}
         {isOwner && (
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6 text-white relative inline-block">
+          <div className="mb-16">            <h2 className="text-2xl font-bold mb-6 text-theme relative inline-block">
               <span className="relative">
                 Bot Control
                 <span className="absolute -inset-1 bg-primary/10 blur-sm rounded-lg -z-10"></span>
@@ -536,12 +544,12 @@ export default function Home() {
                 <button
                   key={button.label}
                   onClick={button.action}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/20 transition-all duration-300 group"
+                  className="flex flex-col items-center justify-center p-4 rounded-xl bg-surface hover:bg-white/10 border border-theme hover:border-primary transition-all duration-300 group"
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
                     {button.icon}
                   </div>
-                  <span className="text-sm font-medium text-white/90">{button.label}</span>
+                  <span className="text-sm font-medium text-theme">{button.label}</span>
                 </button>
               ))}
             </div>
@@ -555,11 +563,10 @@ export default function Home() {
             <div className="flex items-center gap-1">
               {getBottomNavItems(isOwner).map((item) => (item && (
                 <button
-                  key={item.label}
-                  className={`relative flex items-center px-4 py-2 rounded-xl transition-all duration-200 ${
+                  key={item.label}                  className={`relative flex items-center px-4 py-2 rounded-xl transition-all duration-200 ${
                     item.active 
-                      ? 'text-primary bg-white/10' 
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
+                      ? 'text-primary bg-surface border border-theme' 
+                      : 'text-theme-secondary hover:text-theme hover:bg-surface'
                   }`}
                   onClick={() => router.push(item.href)}
                 >

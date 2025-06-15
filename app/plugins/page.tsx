@@ -47,12 +47,17 @@ export default function PluginsStore() {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [installedPlugins, setInstalledPlugins] = useState<string[]>([]);
+  const [installing, setInstalling] = useState<Set<number>>(new Set());
   const loadPlugins = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await pluginsApi.listPlugins();
-      setPlugins(data);
+      const [pluginsData, installedData] = await Promise.all([
+        pluginsApi.listPlugins(),
+        pluginsApi.getInstalledPlugins()
+      ]);
+      setPlugins(pluginsData);
+      setInstalledPlugins(installedData.installed_plugins);
       setError(null);
     } catch (error) {
       setError('Failed to load plugins');
@@ -68,6 +73,38 @@ export default function PluginsStore() {
   useEffect(() => {
     loadPlugins();
   }, [loadPlugins]);
+
+  const handleInstallPlugin = async (plugin: Plugin) => {
+    try {
+      setInstalling(prev => new Set(prev).add(plugin.id));
+      
+      const result = await pluginsApi.installPlugin(plugin.id);
+      
+      if (result.success) {
+        // Update installed plugins list
+        setInstalledPlugins(prev => [...prev, String(plugin.id)]);
+        
+        showPopup({
+          message: `Plugin "${plugin.title}" installed successfully!`,
+          buttons: [{ type: 'ok' }]
+        });
+      } else {
+        throw new Error(result.message || 'Installation failed');
+      }
+    } catch (error) {
+      console.error('Error installing plugin:', error);
+      showPopup({
+        message: `Failed to install plugin "${plugin.title}". Please try again.`,
+        buttons: [{ type: 'ok' }]
+      });
+    } finally {
+      setInstalling(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(plugin.id);
+        return newSet;
+      });
+    }
+  };
 
   const filteredPlugins = plugins.filter(plugin => 
     plugin.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,10 +175,8 @@ export default function PluginsStore() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-      </div>
-
-      {/* Plugins List */}
-      <div className="p-4 space-y-4">
+      </div>      {/* Plugins List */}
+      <div className="p-4 space-y-2">
         {error && (
           <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500">
             {error}
@@ -152,41 +187,53 @@ export default function PluginsStore() {
           <div className="text-center py-8 text-white/40">
             {searchQuery ? 'No plugins found matching your search' : 'No plugins available'}
           </div>
-        )}
-        
-        {filteredPlugins.map((plugin) => (
-          <div key={plugin.id} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-primary/20 transition-all duration-300">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="text-lg font-semibold text-white">{plugin.title}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  {plugin.is_official && (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-500">Official</span>
-                  )}
+        )}{filteredPlugins.map((plugin) => (
+          <div key={plugin.id} className="p-3 rounded-lg bg-white/5 border border-white/10 hover:border-primary/20 transition-all duration-300">            <div className="flex justify-between items-start mb-1">
+              <div className="flex-1 mr-3">                <div className="flex items-center gap-1.5">
+                  <h3 className="text-base font-semibold text-white leading-tight">{plugin.title}</h3>
                   {plugin.is_trusted && (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-500">Trusted</span>
+                    <svg className="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   )}
                 </div>
               </div>
-              <a
-                href={plugin.download_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1 rounded-lg text-sm font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-all duration-300"
-              >
-                Download
-              </a>
+              {installedPlugins.includes(String(plugin.id)) ? (
+                <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-500 flex-shrink-0">
+                  Installed
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleInstallPlugin(plugin)}
+                  disabled={installing.has(plugin.id)}
+                  className="px-2 py-1 rounded text-xs font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 flex-shrink-0"
+                >
+                  {installing.has(plugin.id) ? (
+                    <>
+                      <div className="animate-spin rounded-full h-2.5 w-2.5 border-t border-current"></div>
+                      Installing...
+                    </>
+                  ) : (
+                    'Install'
+                  )}
+                </button>
+              )}
             </div>
-            <p className="text-sm text-white/70 mb-3">{plugin.description}</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {plugin.tags.map((tag) => (
+            <p className="text-xs text-white/70 mb-2 line-clamp-2 leading-tight">{plugin.description}</p>
+            <div className="flex flex-wrap gap-1">
+              {plugin.tags.slice(0, 4).map((tag) => (
                 <span 
                   key={tag}
-                  className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/60"
+                  className="px-1.5 py-0.5 rounded text-xs bg-white/10 text-white/60"
                 >
                   {tag}
                 </span>
               ))}
+              {plugin.tags.length > 4 && (
+                <span className="px-1.5 py-0.5 rounded text-xs bg-white/10 text-white/60">
+                  +{plugin.tags.length - 4}
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -222,4 +269,4 @@ export default function PluginsStore() {
       </div>
     </div>
   );
-} 
+}

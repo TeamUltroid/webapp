@@ -69,6 +69,11 @@ export type InvoiceData = {
 export type MiniAppSettings = {
   showStarDonation?: boolean;
   donationAmounts?: string;
+  theme?: string;
+  BOT_MODE?: boolean;
+  DUAL_MODE?: boolean;
+  HNDLR?: string;
+  DUAL_HNDLR?: string;
   [key: string]: any;
 };
 
@@ -233,15 +238,24 @@ export const api = {
       // Return empty object on error
       return {};
     }
-  },
-
-  // Save a mini app setting
+  },  // Save a mini app setting (now handles both mini app and bot settings)
   async saveMiniAppSetting(key: string, value: any): Promise<{ success: boolean; message: string }> {
     try {
       // POST requests need authentication
       return await makeApiRequest('/api/settings/miniapp', 'POST', { key, value }, true);
     } catch (error) {
       console.error('Error saving mini app setting:', error);
+      throw error;
+    }
+  },
+
+  // Save multiple mini app/bot settings in a single request
+  async saveMiniAppSettings(settings: { key: string; value: any }[]): Promise<{ success: boolean; message: string }> {
+    try {
+      // POST requests need authentication
+      return await makeApiRequest('/api/settings/miniapp', 'POST', { settings }, true);
+    } catch (error) {
+      console.error('Error saving mini app settings:', error);
       throw error;
     }
   },
@@ -279,18 +293,73 @@ export interface PluginUpdate extends Partial<PluginUpload> {}
 
 export const pluginsApi = {
   // List all plugins with optional filters - Public endpoint
-  listPlugins: async (filters?: { is_trusted?: boolean; is_official?: boolean; uploaded_by?: number }) => {
+  listPlugins: async (filters?: { 
+    is_trusted?: boolean; 
+    is_official?: boolean; 
+    uploaded_by?: number;
+    search?: string;
+    limit?: number;
+    offset?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }) => {
     const params = new URLSearchParams();
     if (filters?.is_trusted !== undefined) params.append('is_trusted', String(filters.is_trusted));
     if (filters?.is_official !== undefined) params.append('is_official', String(filters.is_official));
     if (filters?.uploaded_by !== undefined) params.append('uploaded_by', String(filters.uploaded_by));
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.limit !== undefined) params.append('limit', String(filters.limit));
+    if (filters?.offset !== undefined) params.append('offset', String(filters.offset));
+    if (filters?.sort_by) params.append('sort_by', filters.sort_by);
+    if (filters?.sort_order) params.append('sort_order', filters.sort_order);
 
-    return makeApiRequest(`/api/v1/plugins${params.toString() ? `?${params.toString()}` : ''}`) as Promise<Plugin[]>;
+    const response = await makeApiRequest(`/api/v1/plugins${params.toString() ? `?${params.toString()}` : ''}`) as {
+      plugins: Plugin[];
+      pagination: {
+        total_items: number;
+        total_pages: number;
+        current_page: number;
+        items_per_page: number;
+        has_next_page: boolean;
+        has_previous_page: boolean;
+      };
+    };
+    
+    // Return the plugins array for backward compatibility, but also include pagination info
+    return response.plugins || [];
   },
+  // List all plugins with full pagination support
+  listPluginsPaginated: async (filters?: { 
+    is_trusted?: boolean; 
+    is_official?: boolean; 
+    uploaded_by?: number;
+    search?: string;
+    limit?: number;
+    offset?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.is_trusted !== undefined) params.append('is_trusted', String(filters.is_trusted));
+    if (filters?.is_official !== undefined) params.append('is_official', String(filters.is_official));
+    if (filters?.uploaded_by !== undefined) params.append('uploaded_by', String(filters.uploaded_by));
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.limit !== undefined) params.append('limit', String(filters.limit));
+    if (filters?.offset !== undefined) params.append('offset', String(filters.offset));
+    if (filters?.sort_by) params.append('sort_by', filters.sort_by);
+    if (filters?.sort_order) params.append('sort_order', filters.sort_order);
 
-  // Get a single plugin by ID - Public endpoint
-  getPlugin: async (pluginId: number) => {
-    return makeApiRequest(`/api/v1/plugins/${pluginId}`) as Promise<Plugin>;
+    return makeApiRequest(`/api/v1/plugins${params.toString() ? `?${params.toString()}` : ''}`) as Promise<{
+      plugins: Plugin[];
+      pagination: {
+        total_items: number;
+        total_pages: number;
+        current_page: number;
+        items_per_page: number;
+        has_next_page: boolean;
+        has_previous_page: boolean;
+      };
+    }>;
   },
 
   // Upload a new plugin - Protected endpoint
@@ -323,12 +392,42 @@ export const pluginsApi = {
   deletePlugin: async (pluginId: number) => {
     return makeApiRequest(`/api/v1/plugins/${pluginId}`, 'DELETE', null, true) as Promise<{ message: string }>;
   },
-
   // Get plugins by uploader ID - Public endpoint
-  getPluginsByUploader: async (uploaderId: number) => {
+  getPluginsByUploader: async (uploaderId: number, filters?: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }) => {
     try {
       console.log(`Fetching plugins for uploader ID: ${uploaderId}`);
-      return makeApiRequest(`/api/v1/plugins/uploader/${uploaderId}`, 'GET', null, true) as Promise<Plugin[]>;
+      
+      const params = new URLSearchParams();
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.limit !== undefined) params.append('limit', String(filters.limit));
+      if (filters?.offset !== undefined) params.append('offset', String(filters.offset));
+      if (filters?.sort_by) params.append('sort_by', filters.sort_by);
+      if (filters?.sort_order) params.append('sort_order', filters.sort_order);
+
+      const response = await makeApiRequest(
+        `/api/v1/plugins/uploader/${uploaderId}${params.toString() ? `?${params.toString()}` : ''}`, 
+        'GET', 
+        null, 
+        true
+      ) as {
+        plugins: Plugin[];
+        pagination: {
+          total_items: number;
+          total_pages: number;
+          current_page: number;
+          items_per_page: number;
+          has_next_page: boolean;
+          has_previous_page: boolean;
+        };
+      };
+      
+      return response.plugins || [];
     } catch (error) {
       console.error(`Error fetching plugins for uploader ${uploaderId}:`, error);
       throw error;
@@ -341,4 +440,21 @@ export const pluginsApi = {
       updates_available: Array<{ id: number; title: string; updated_at: string }> 
     }>;
   },
-}; 
+
+  // Install a plugin by ID - Protected endpoint
+  installPlugin: async (pluginId: number) => {
+    return makeApiRequest('/api/plugins/install', 'POST', { plugin_id: pluginId }, true) as Promise<{
+      success: boolean;
+      message: string;
+      plugin_id: number;
+      filename: string;
+    }>;
+  },
+
+  // Get installed plugin IDs - Public endpoint
+  getInstalledPlugins: async () => {
+    return makeApiRequest('/api/plugins/installed') as Promise<{
+      installed_plugins: string[];
+    }>;
+  },
+};

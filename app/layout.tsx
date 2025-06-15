@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TelegramWrapper } from "@/components/TelegramWrapper";
 import { ForceDarkMode } from "@/components/ForceDarkMode";
+import { ThemeProvider } from "@/utils/theme-context";
 import Script from 'next/script';
 import "./globals.css";
 import "./telegram-override.css";
@@ -32,22 +33,23 @@ export default function RootLayout({
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
-        />
-        <style>{`
+        />        <style>{`
           :root {
             color-scheme: dark;
           }
           html, body {
-            background-color: #121212 !important;
-            color: #ffffff !important;
+            background-color: var(--color-background) !important;
+            color: var(--color-text) !important;
           }
         `}</style>
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#121212] text-white`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} style={{backgroundColor: 'var(--color-background)', color: 'var(--color-text)'}}>
         <ForceDarkMode />
-        <TelegramWrapper>
-          {children}
-        </TelegramWrapper>
+        <ThemeProvider>
+          <TelegramWrapper>
+            {children}
+          </TelegramWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
